@@ -8,6 +8,7 @@
 #define RING 5
 
 void read_flash(cv::Mat& image);
+
 int main(){
 	cv::Mat image;
 	image = cv::imread("flashcode4.jpg");
@@ -119,37 +120,10 @@ void add_ext(cv::Point xp[8])
 		add(xp[i], i);
 }
 
-
-int test_all(const cv::Mat_<uchar>& image, cv::Point xp[8]){
-	int t = 0;
+void draw_point(cv::Mat& flash, cv::Point xp[8]){
 	for (int i = 0; i < 8; i++)
-		t += image(xp[i])>0 ? 1 : 0;
-	return t;
-}
-
-void draw_point(const cv::Mat_<uchar>& image, cv::Mat& flash, cv::Point xp[8]){
-	for (int i = 0; i < 8; i++){
-		//int t = image(xp[i]);
 		flash.at<uchar>(xp[i]) = 128;
-		//std::cout << xp[i] << t <<" ";
-	}
 }
-
-/*
-int GetUnitSize(const cv::Mat_<uchar>& image, cv::Point xp[8], int dir){
-cv::Point p = xp[dir];
-int size = 0;
-while (image(xp[dir]) == ARC)
-add(xp[dir],dir);
-
-while (image(xp[dir]) == SPACE){
-add(xp[dir], dir);
-size++;
-}
-xp[dir] = p;
-return size;
-}
-*/
 
 int GetUnitSize(const cv::Mat_<uchar>& image, cv::Point xp[8], int dir){
 	cv::Point p = xp[dir];
@@ -196,20 +170,25 @@ void LineProcess(const cv::Mat_<uchar>& image, int arc[], cv::Point xp[8], int u
 				arc[i] ++;
 			add(xp[dir], dir);
 		}
+
 		arc[i] = (arc[i] >= usize / 2) ? 1 : 0;
 
+		/* Align Pointer  */
 		cv::Point x = xp[dir]; int c = 0;
 
-		if (image(xp[dir]) == arc[i] * 255){
+		if (image(xp[dir]) == arc[i] * 255){ /* if Pointer, point to Previous Area */
 			while (image(xp[dir]) == arc[i] * 255 && c <2 * usize){
 				add(xp[dir], dir);
 				c++;
 			}
+
+			/* If the size of the remaining area is more than C/2, then there will be an arc in this area 
+				so back value */
 			if (c >= usize / 2)
 				xp[dir] = x;
 		}
-		else {
-			while (image(xp[dir]) != arc[i] * 255){
+		else {	/* if Pointer, point to invers Area */
+			while (image(xp[dir]) != arc[i] * 255){ /* Back to Area to correctly point*/
 				sub(xp[dir], dir);
 				c++;
 			}
@@ -223,6 +202,7 @@ void LineProcess(const cv::Mat_<uchar>& image, int arc[], cv::Point xp[8], int u
 	}
 }
 
+
 void read_flash(cv::Mat& image){
 
 	cv::cvtColor(image, image, CV_BGR2GRAY);
@@ -235,33 +215,33 @@ void read_flash(cv::Mat& image){
 
 	skip_capital(image, xp);
 
+	/* Get Unit Size of each wave */
 	int unit_size[8];
 	for (int i = 0; i < 8; i++)
 		unit_size[i] = GetUnitSize(image, xp, i);
 
+	/* arc variable is array of 8 bit per each ring that save each bit in each rings */
 	int arc[8][RING] = { 0 };
-
 	for (int i = 0; i < 8; i++)
 		LineProcess(image, arc[i], xp, unit_size[i], i, RING);
 
+	/* code variable is array of 4 unsigned char (1 Byte) and save the 4 value of ring */
+	/* note : the first ring must be 255 (and the last 4 ring is the real value) */
 	int code[5] = { 0 };
-
-	for (int i = 0; i < RING; i++){
+	for (int i = 0; i < RING; i++)
 		for (int j = 0; j < 8 / 2; j++){
 			code[i] *= 2;
 			code[i] += arc[j][i];
 			code[i] *= 2;
 			code[i] += arc[j + 4][i];
-
 		}
-	}
 
-
+	/* Show the code with .*/
 	for (int i = 1; i < RING; i++)
 		std::cout << code[i] << ".";
 
+	/* Convert code array to Unsigned integer */
 	unsigned int iCode = code[1] | code[2] << 8 | code[3] << 8 * 2 | code[4] << 8 * 3;
-
 	std::cout << std::endl << iCode;
 
 
