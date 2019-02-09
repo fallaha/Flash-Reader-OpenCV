@@ -1,4 +1,4 @@
-﻿
+﻿/* Ali Fallah (c) 1397/11/20 */
 #include "stdafx.h"
 #include "opencv.hpp"
 #pragma comment(lib, "opencv_world320.lib")
