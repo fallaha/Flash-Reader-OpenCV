@@ -11,16 +11,23 @@
 #include <stdio.h>
 #include <sstream>
 
-using namespace cv;
+//#define DEBUG_EN
 
+using namespace cv;
+#define TOLERANCE 2
 #define ARC 255
 #define SPACE 0
 
 int read();
 
+
+const int FRAME_WIDTH = 640;
+const int FRAME_HEIGHT = 480;
+
 int main(){
 	read();
 	std::getchar();
+
 }
 
 enum direction {
@@ -187,7 +194,7 @@ int get_unit_size(const cv::Mat_<uchar>& image, cv::Point xp[8], int dir, int ra
 		if (distance_to_next_edge(image, xp, dir, unit_size) < unit_size / 2)
 			goto_next_edge(image,xp, dir);
 	}	
-	else if (counter > radius / 10){
+	else if (counter > unit_size / TOLERANCE){
 		return 0;
 	}
 
@@ -234,8 +241,10 @@ unsigned char read_data_ring(const cv::Mat_<uchar>& image, cv::Point xp[8], int 
 
 		ABS(counter);
 
-		if (counter > unit_size[i] / 3){
-			std::cout << "in read_data_ring1 - counter > unit_size[i] / 3 - Error occurred :( \n"; /* Error Message */
+		if (counter > unit_size[i] / TOLERANCE){
+#ifdef DEBUG_EN
+			std::cout << "in read_data_ring1 - counter > unit_size[i] / TOLERANCE - Error occurred :( \n"; /* Error Message */
+#endif
 			return 0;
 		}
 
@@ -254,8 +263,10 @@ unsigned char read_data_ring(const cv::Mat_<uchar>& image, cv::Point xp[8], int 
 				goto_next_edge(image, xp, i);
 			}
 		}
-		else if (counter > unit_size[i] / 5){
-			std::cout << "in read_data_ring2 - counter > unit_size[i] / 5 - Error occurred :( \n"; /* Error Message */
+		else if (counter > unit_size[i] / TOLERANCE){
+#ifdef DEBUG_EN
+			std::cout << "in read_data_ring2 - counter > unit_size[i] / TOLERANCE - Error occurred :( \n"; /* Error Message */
+#endif
 			return 0;
 		}
 
@@ -304,7 +315,9 @@ int decode(Mat& image,unsigned char data[16],Point center){
 
 	int radius;
 	if (!(radius = skip_capital(image, xp, (image.size().width + image.size().height) / 2))){
+#ifdef DEBUG_EN
 		std::cout << "The Radius Was Very Big :( \n"; /* Error Message */
+#endif
 		return 0; /* an error occurred */
 	}
 	
@@ -313,19 +326,25 @@ int decode(Mat& image,unsigned char data[16],Point center){
 	int unit_size[8];
 	for (int i = 0; i < 8; i++)
 		if (!(unit_size[i] = get_unit_size(image, xp, i, radius))){
+#ifdef DEBUG_EN
 			std::cout << "in Unit Size Error occurred :( \n"; /* Error Message */
+#endif
 			return 0;
 		}
 
 
 	int ep = get_entry_point_index(image, xp);
 	if (ep == -1){
+#ifdef DEBUG_EN
 		std::cout << "in Detect Entry Point Error occurred :( \n"; /* Error Message */
+#endif
 		return 0; /* an error occurred */
 	}
 
 	if ((read_data_ring(image, xp, unit_size, ep)) != 128){ /* Skip Direction Ring */
+#ifdef DEBUG_EN
 		std::cout << "in Compare Entry Point Error occurred :( \n" ; /* Error Message */
+#endif
 		return 0; /* an error occurred */
 	}
 
@@ -335,13 +354,17 @@ int decode(Mat& image,unsigned char data[16],Point center){
 	int ring_count = ring_count_law[info_s->rings];
 
 	if (ring_count == 0){
+#ifdef DEBUG_EN
 		std::cout << "in Ring Count Error occurred :( \n"; /* Error Message */
+#endif
 		return 0;
 	}
 
 	for (int i = 0; i < ring_count; i++)
 		if (!(data[i] = read_data_ring(image, xp, unit_size, ep))){
+#ifdef DEBUG_EN
 			std::cout << "in Ring Data Reading Error occurred :( \n"; /* Error Message */
+#endif
 			return 0;
 		}
 
@@ -372,7 +395,9 @@ int decode(Mat& image,unsigned char data[16],Point center){
 	char parity = read_data_ring(image, xp, unit_size, ep);
 
 	if (comp != parity){
+#ifdef DEBUG_EN
 		std::cout << "in Parity Error occurred :( \n"; /* Error Message */
+#endif
 		return 0; /* ;< */
 	}
 	return ring_count; /* All thing Correctly Worked :) */
@@ -380,26 +405,60 @@ int decode(Mat& image,unsigned char data[16],Point center){
 
 
 int read(){
-	/* Read the Image and Process on it to Decode! */
-	Mat image;
+
 	unsigned char data[16] = { 0 };
-
-	image = imread("C:\\Users\\Ali\\Desktop\\FC-2-p.jpg");
-	Point center = Point(image.size().width / 2, image.size().height / 2);
-
-	cv::cvtColor(image, image, CV_BGR2GRAY);
-	cv::bitwise_not(image, image);
-	/* good treshold
-	190 for pic 1,2
-	120 for pic 3*/
-	cv::threshold(image, image, 155, 255, cv::THRESH_BINARY);
-
-
-
-	/* Set Center of The FC */
+	Mat cameraFeed;
+	Mat gray;
+	Mat image;
 	int count;
-	if (!(count = decode(image,data,center)))
-		return 0;
+
+
+	VideoCapture capture;
+
+	capture.open(0);
+
+	capture.set(CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
+
+	while (1){
+
+		capture.read(cameraFeed);
+		//cameraFeed = imread("C:\\Users\\Ali\\Desktop\\FC-2-p.jpg");
+
+		cvtColor(cameraFeed, gray, CV_BGR2GRAY);
+		cvtColor(cameraFeed, image, CV_BGR2GRAY);
+
+		/* Reduce the noise so we avoid false circle detection */
+		GaussianBlur(gray, gray, cv::Size(3, 3), 2, 2);
+
+		std::vector<cv::Vec3f> circles;
+
+		HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, gray.rows / 8, 25, 100, 0, 0);
+
+		bitwise_not(image, image);
+		threshold(image, image, 155, 255, THRESH_BINARY);
+
+		for (size_t i = 0; i < circles.size(); i++)
+		{
+			cv::Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
+			int radius = cvRound(circles[i][2]);
+
+			if (count = decode(image, data, center))
+				goto finish;
+
+			circle(cameraFeed, center, 12, cv::Scalar(0, 255, 0), -1, 8, 0);
+			circle(cameraFeed, center, radius, cv::Scalar(0, 0, 255), 3, 8, 0);
+		}
+
+
+
+		imshow("cameraFeed", cameraFeed);
+		imshow("image", image);
+
+		waitKey(30);
+	}
+
+	finish:
 
 	for (int i = 0; i < count; i++){
 		printf("%d", data[i]);
@@ -408,12 +467,5 @@ int read(){
 		else
 			printf("\n");
 	}
-
-	std::cout << "Program RUN\n";
-
-
-
-	
-
 	return 1;
 }
