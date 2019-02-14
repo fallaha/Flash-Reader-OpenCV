@@ -284,21 +284,15 @@ unsigned char read_data_ring(const cv::Mat_<uchar>& image, cv::Point xp[8], int 
 }
 
 struct information {
-	unsigned version  : 3 ;
-	unsigned reserved : 2 ;
 	unsigned rings    : 3 ;
+	unsigned reserved : 2 ;
+	unsigned version  : 3 ;
 };
 
 
 
 #define MAX_RING 16
-const char ring_count_law[] = { 5, 4, 6, 8, 10, 12, 14, 16 };
-
-struct  ali
-{
-	int a;
-	char b;
-};
+const char ring_count_law[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
 
 void draw_point(Mat& flash, Point xp[8]){
 	for (int i = 0; i < 8; i++)
@@ -353,6 +347,16 @@ int decode(Mat& image,unsigned char data[16],Point center){
 	
 	int ring_count = ring_count_law[info_s->rings];
 
+/*
+	printf("rings : %d\n", info_s->rings);
+	printf("reserved : %d\n", info_s->reserved);
+	printf("version : %d\n", info_s->version);
+*/
+	if (info_s->version > 0){
+		std::cout << "Version Not Support!\n";
+		return 0;
+	}
+
 	if (ring_count == 0){
 #ifdef DEBUG_EN
 		std::cout << "in Ring Count Error occurred :( \n"; /* Error Message */
@@ -392,7 +396,13 @@ int decode(Mat& image,unsigned char data[16],Point center){
 		comp += parity_check[i] % 2;
 	}
 
-	char parity = read_data_ring(image, xp, unit_size, ep);
+	char parity;
+	if (!(parity = read_data_ring(image, xp, unit_size, ep))){
+#ifdef DEBUG_EN
+		std::cout << "in Data Parity Reading Error occurred :( \n"; /* Error Message */
+#endif
+		return 0;
+}
 
 	if (comp != parity){
 #ifdef DEBUG_EN
@@ -423,7 +433,7 @@ int read(){
 	while (1){
 
 		capture.read(cameraFeed);
-		//cameraFeed = imread("C:\\Users\\Ali\\Desktop\\FC-2-p.jpg");
+		//cameraFeed = imread("C:\\Users\\Ali\\Desktop\\p3.jpg");
 
 		cvtColor(cameraFeed, gray, CV_BGR2GRAY);
 		cvtColor(cameraFeed, image, CV_BGR2GRAY);
@@ -459,7 +469,6 @@ int read(){
 	}
 
 	finish:
-
 	for (int i = 0; i < count; i++){
 		printf("%d", data[i]);
 		if (i != count - 1)
