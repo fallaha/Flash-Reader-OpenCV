@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <sstream>
 
-//#define DEBUG_EN
+#define DEBUG_EN
 
 using namespace cv;
 #define TOLERANCE 2
@@ -335,6 +335,7 @@ int decode(Mat& image,unsigned char data[16],Point center){
 		return 0; /* an error occurred */
 	}
 
+
 	if ((read_data_ring(image, xp, unit_size, ep)) != 128){ /* Skip Direction Ring */
 #ifdef DEBUG_EN
 		std::cout << "in Compare Entry Point Error occurred :( \n" ; /* Error Message */
@@ -432,9 +433,8 @@ int read(){
 
 	while (1){
 
-		capture.read(cameraFeed);
-		//cameraFeed = imread("C:\\Users\\Ali\\Desktop\\p3.jpg");
-
+		//capture.read(cameraFeed);
+		cameraFeed = imread("C:\\Users\\Ali\\Desktop\\FCG.jpg");
 		cvtColor(cameraFeed, gray, CV_BGR2GRAY);
 		cvtColor(cameraFeed, image, CV_BGR2GRAY);
 
@@ -442,12 +442,9 @@ int read(){
 		GaussianBlur(gray, gray, cv::Size(3, 3), 2, 2);
 
 		std::vector<cv::Vec3f> circles;
-
 		HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, gray.rows / 8, 25, 100, 0, 0);
-
 		bitwise_not(image, image);
 		threshold(image, image, 155, 255, THRESH_BINARY);
-
 		for (size_t i = 0; i < circles.size(); i++)
 		{
 			cv::Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
