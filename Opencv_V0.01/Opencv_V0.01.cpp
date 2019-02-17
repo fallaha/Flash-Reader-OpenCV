@@ -12,8 +12,8 @@
 
 using namespace cv;
 
-const int xsize = 2480;
-const int ysize = 3508;
+const int xsize = 704;
+const int ysize = 704;
 
 #define MAX_DATA_RING 16
 
@@ -21,7 +21,7 @@ int generate(unsigned char data[], int count);
 void conver_to_code_string(unsigned char data[], int count, char buffer[]);
 
 int main(){
-	unsigned char data[MAX_DATA_RING];
+	/*unsigned char data[MAX_DATA_RING];
 	int count = 3;
 
 	while (!((count % 2) - 1 && count <= 16 && count >= 2)){
@@ -31,8 +31,10 @@ int main(){
 
 	for (int i = 0; i < count; i++)
 		scanf_s("%d", &data[i]);
+		*/
 
-
+	unsigned char data[MAX_DATA_RING] = { 192,168,1,1 };
+	int count = 4;
 	generate(data, count);
 
 	return 0;
@@ -45,6 +47,7 @@ struct information {
 	unsigned version : 3;
 };
 
+#define Line_Lite xsize / 70
 
 int generate(unsigned char data[], int count){
 
@@ -63,7 +66,7 @@ int generate(unsigned char data[], int count){
 	data_ring_size = xsize / 2 - capital_radius - margin;
 
 	int thinkness = data_ring_size / ((count + 4) * 2);
-
+	//thinkness = -thinkness;
 
 
 	/* Calculate Parity */
@@ -108,7 +111,7 @@ int generate(unsigned char data[], int count){
 
 	for (int j = 0; j < (count + 4 - 1) * 2; j++){
 		for (int i = 0; i < 8; i++){
-			ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, deg, deg + 38, Scalar(((j % 2) ? (ring_val[j / 2] & 1 << 7 - i) * 255 : !(ring_val[j / 2] & 1 << 7 - i) * 255), 0, 0), thinkness, CV_AA);
+			ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, deg, deg + 45, Scalar(((j % 2) ? (ring_val[j / 2] & 1 << 7 - i) * 255 : !(ring_val[j / 2] & 1 << 7 - i) * 255), 0, 0), -1, CV_AA);
 			deg += 45;
 		}
 
@@ -116,26 +119,37 @@ int generate(unsigned char data[], int count){
 		deg = 0;
 	}
 
+	line(FC, Point(0, ysize / 2), Point(xsize, ysize / 2), (255, 0, 0), Line_Lite);
+	line(FC, Point(xsize / 2, 0), Point(xsize / 2, ysize), (255, 0, 0), Line_Lite);
+	line(FC, Point(xsize, 0), Point(0, ysize), (255, 0, 0), Line_Lite);
+	line(FC, Point(0, 0), Point(xsize, ysize), (255, 0, 0), Line_Lite);
+
 	/* For Distance Ring */
-	ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, 0, 360, Scalar(255, 0, 0), thinkness, CV_AA);
+	ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, 0, 360, Scalar(255, 0, 0), -1, CV_AA);
 	radius -= thinkness;
-	ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, 0, 360, Scalar(0, 0, 0), thinkness, CV_AA);
+	ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, 0, 360, Scalar(0, 0, 0), -1, CV_AA);
 	radius -= thinkness;
 
 
 	radius += thinkness / 2;
 	ellipse(FC, Point(xsize / 2, ysize / 2), Size(radius, radius), 0, 0, 360, Scalar(255, 0, 0), -1, CV_AA);
 
+
+
+
+
+
 	/* Rotate */
 	warpAffine(FC, FC, (getRotationMatrix2D(Point2f(FC.cols / 2, FC.rows / 2), 19, 1)), Size(FC.cols, FC.rows));
 
+
 	bitwise_not(FC, FC);
 	conver_to_code_string(data, count, buffer);
-	putText(FC, buffer, Point(xsize / 4, ysize - ysize / 20), FONT_HERSHEY_SIMPLEX, 5, (128, 0, 0), 5, LINE_AA);
+	//putText(FC, buffer, Point(xsize / 4, ysize - ysize / 20), FONT_HERSHEY_SIMPLEX, 5, (128, 0, 0), 5, LINE_AA);
 
 	imwrite("C:\\Users\\Ali\\Desktop\\FCG.jpg", FC);
-	//imshow("FC", FC);
-	//waitKey(0);
+	imshow("FC", FC);
+	waitKey(0);
 
 	return 0;
 }
